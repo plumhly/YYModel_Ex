@@ -10,6 +10,8 @@
 
 @interface Libo : NSObject
 
-@property (nonatomic, strong) NSString *libo;
-@property (nonatomic, strong) NSString *plum1;
+//@property (nonatomic, strong) NSString *libo;
+//@property (nonatomic, strong) NSString *plum1;
+
+@property (nonatomic, strong) NSString *name;
 @end

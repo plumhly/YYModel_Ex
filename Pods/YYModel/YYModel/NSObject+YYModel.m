@@ -120,12 +120,13 @@ static force_inline NSNumber *YYNSNumberCreateFromID(__unsafe_unretained id valu
             const char *cstring = ((NSString *)value).UTF8String;
             if (!cstring) return nil;
             double num = atof(cstring);
+            //isinf()  Determines if the given floating point number arg is a positive or negative infinity.
             if (isnan(num) || isinf(num)) return nil;
             return @(num);
         } else {
             const char *cstring = ((NSString *)value).UTF8String;
             if (!cstring) return nil;
-            return @(atoll(cstring));
+            return @(atoll(cstring));//atoll() Parses the C-string str interpreting its content as an integral number, which is returned as a value of type long long int.
         }
     }
     return nil;
@@ -338,7 +339,7 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
      */
     NSString *_mappedToKey;      ///< the key mapped to 映射源，比如"name"映射json字段的"n",这里的_mappedToKey就是“n”
     NSArray *_mappedToKeyPath;   ///< the key path mapped to (nil if the name is not key path) /* 这是keypath, 映射源中“name”对应“ex.na”,这里_mappedToKeyPath就是“ex.na”*/
-    NSArray *_mappedToKeyArray;  ///< the key(NSString) or keyPath(NSArray) array (nil if not mapped to multiple keys)
+    NSArray *_mappedToKeyArray;  ///< the key(NSString) or keyPath(NSArray) array (nil if not mapped to multiple keys)//映射多个值
     YYClassPropertyInfo *_info;  ///< property's info
     _YYModelPropertyMeta *_next; ///< next meta if there are multiple properties mapped to the same key.
 }
@@ -476,21 +477,21 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
 
 @implementation _YYModelMeta
 - (instancetype)initWithClass:(Class)cls {
-    YYClassInfo *classInfo = [YYClassInfo classInfoWithClass:cls];
+    YYClassInfo *classInfo = [YYClassInfo classInfoWithClass:cls];//获取包含class的所有信息（ivar, property, methodList, protocol）
     if (!classInfo) return nil;
     self = [super init];
     
     // Get black list
     NSSet *blacklist = nil;
     if ([cls respondsToSelector:@selector(modelPropertyBlacklist)]) {
-        NSArray *properties = [(id<YYModel>)cls modelPropertyBlacklist];
+        NSArray *properties = [(id<YYModel>)cls modelPropertyBlacklist];//黑名单
         if (properties) {
             blacklist = [NSSet setWithArray:properties];
         }
     }
     
     // Get white list
-    NSSet *whitelist = nil;
+    NSSet *whitelist = nil;//白名单
     if ([cls respondsToSelector:@selector(modelPropertyWhitelist)]) {
         NSArray *properties = [(id<YYModel>)cls modelPropertyWhitelist];
         if (properties) {
@@ -499,7 +500,7 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
     }
     
     // Get container property's generic class
-    NSDictionary *genericMapper = nil;
+    NSDictionary *genericMapper = nil;//获取容器类对应的映射class
     if ([cls respondsToSelector:@selector(modelContainerPropertyGenericClass)]) {
         genericMapper = [(id<YYModel>)cls modelContainerPropertyGenericClass];
         if (genericMapper) {
@@ -521,10 +522,11 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
         }
     }
     
-    // Create all property metas.
+    // Create all property metas.把class的所有property 转换成 _YYModelPropertyMeta，_YYModelPropertyMeta会把对应的映射信息填入其中
     NSMutableDictionary *allPropertyMetas = [NSMutableDictionary new];
     YYClassInfo *curClassInfo = classInfo;
     while (curClassInfo && curClassInfo.superCls != nil) { // recursive parse super class, but ignore root class (NSObject/NSProxy)
+        //查找出所有的property
         for (YYClassPropertyInfo *propertyInfo in curClassInfo.propertyInfos.allValues) {
             if (!propertyInfo.name) continue;
             if (blacklist && [blacklist containsObject:propertyInfo.name]) continue;
@@ -543,7 +545,7 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
     
     // create mapper
     NSMutableDictionary *mapper = [NSMutableDictionary new];//存储所有映射值 key:propertyname ,value:PropertyMetas
-    NSMutableArray *keyPathPropertyMetas = [NSMutableArray new];
+    NSMutableArray *keyPathPropertyMetas = [NSMutableArray new];//存储单个map key
     NSMutableArray *multiKeysPropertyMetas = [NSMutableArray new];//用于存储多个map key
     
     if ([cls respondsToSelector:@selector(modelCustomPropertyMapper)]) {
@@ -610,7 +612,7 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
         mapper[name] = propertyMeta;
     }];
     
-    if (mapper.count) _mapper = mapper;
+    if (mapper.count) _mapper = mapper;//所有property
     if (keyPathPropertyMetas) _keyPathPropertyMetas = keyPathPropertyMetas;
     if (multiKeysPropertyMetas) _multiKeysPropertyMetas = multiKeysPropertyMetas;
     
@@ -625,7 +627,7 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
     return self;
 }
 
-/// Returns the cached model class meta
+/// Returns the cached model class meta//这个方法会把class的所有信息（ivar, property, method, protocol, 映射的key,keypath, multikey，multikeypath）
 + (instancetype)metaWithClass:(Class)cls {
     if (!cls) return nil;
     static CFMutableDictionaryRef cache;
@@ -639,8 +641,8 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
     _YYModelMeta *meta = CFDictionaryGetValue(cache, (__bridge const void *)(cls));
     dispatch_semaphore_signal(lock);
     if (!meta || meta->_classInfo.needUpdate) {
-        meta = [[_YYModelMeta alloc] initWithClass:cls];
-        if (meta) {
+        meta = [[_YYModelMeta alloc] initWithClass:cls];//这里把class的property以及映射信息都填入其中
+        if (meta) {//缓存
             dispatch_semaphore_wait(lock, DISPATCH_TIME_FOREVER);
             CFDictionarySetValue(cache, (__bridge const void *)(cls), (__bridge const void *)(meta));
             dispatch_semaphore_signal(lock);
@@ -720,6 +722,7 @@ static force_inline void ModelSetNumberToProperty(__unsafe_unretained id model,
                                                   __unsafe_unretained _YYModelPropertyMeta *meta) {
     switch (meta->_type & YYEncodingTypeMask) {
         case YYEncodingTypeBool: {
+            //默认情况下objc_msgSend只有两个参数，添加了转换可以增加参数
             ((void (*)(id, SEL, bool))(void *) objc_msgSend)((id)model, meta->_setter, num.boolValue);
         } break;
         case YYEncodingTypeInt8: {
@@ -1114,6 +1117,9 @@ typedef struct {
  @param _context _context.modelMeta and _context.model should not be nil.
  */
 static void ModelSetWithDictionaryFunction(const void *_key, const void *_value, void *_context) {
+    /*在 ARC 条件下，默认声明的对象是 __strong 类型的，赋值时有可能会产生 retain/release 调用，如果一个变量在其生命周期内不会被释放，则使用 __unsafe_unretained 会节省很大的开销。
+     
+     访问具有 __weak 属性的变量时，实际上会调用 objc_loadWeak() 和 objc_storeWeak() 来完成，这也会带来很大的开销，所以要避免使用 __weak 属性。*/
     ModelSetContext *context = _context;
     __unsafe_unretained _YYModelMeta *meta = (__bridge _YYModelMeta *)(context->modelMeta);
     __unsafe_unretained _YYModelPropertyMeta *propertyMeta = [meta->_mapper objectForKey:(__bridge id)(_key)];
@@ -1248,7 +1254,7 @@ static id ModelToJSONObjectRecursive(NSObject *model) {
             for (NSUInteger i = 0, max = propertyMeta->_mappedToKeyPath.count; i < max; i++) {
                 NSString *key = propertyMeta->_mappedToKeyPath[i];
                 if (i + 1 == max) { // end
-                    if (!superDic[key]) superDic[key] = value;
+                    if (!superDic[key]) superDic[key] = value;//这里superDic指向subDic指向的内存地址
                     break;
                 }
                 
@@ -1262,9 +1268,9 @@ static id ModelToJSONObjectRecursive(NSObject *model) {
                     }
                 } else {
                     subDic = [NSMutableDictionary new];
-                    superDic[key] = subDic;
+                    superDic[key] = subDic;//这里result 和 superDic指向同一个内存地址
                 }
-                superDic = subDic;
+                superDic = subDic;//这里superDic指向subDic指向的内存地址
                 subDic = nil;
             }
         } else {
@@ -1275,7 +1281,7 @@ static id ModelToJSONObjectRecursive(NSObject *model) {
     }];
     
     if (modelMeta->_hasCustomTransformToDictionary) {
-        BOOL suc = [((id<YYModel>)model) modelCustomTransformToDictionary:dic];
+        BOOL suc = [((id<YYModel>)model) modelCustomTransformToDictionary:dic];//自定义字典
         if (!suc) return nil;
     }
     return result;
@@ -1482,10 +1488,10 @@ static NSString *ModelDescription(NSObject *model) {
     
 
     _YYModelMeta *modelMeta = [_YYModelMeta metaWithClass:object_getClass(self)];
-    if (modelMeta->_keyMappedCount == 0) return NO;
+    if (modelMeta->_keyMappedCount == 0) return NO;//表示没有property
     
     if (modelMeta->_hasCustomWillTransformFromDictionary) {
-        dic = [((id<YYModel>)self) modelCustomWillTransformFromDictionary:dic];
+        dic = [((id<YYModel>)self) modelCustomWillTransformFromDictionary:dic];//这里面可以把一些不需要的信息移除，起到精简的作用
         if (![dic isKindOfClass:[NSDictionary class]]) return NO;
     }
     
@@ -1494,7 +1500,7 @@ static NSString *ModelDescription(NSObject *model) {
     context.model = (__bridge void *)(self);
     context.dictionary = (__bridge void *)(dic);
     
-    
+
     if (modelMeta->_keyMappedCount >= CFDictionaryGetCount((CFDictionaryRef)dic)) {
         CFDictionaryApplyFunction((CFDictionaryRef)dic, ModelSetWithDictionaryFunction, &context);
         if (modelMeta->_keyPathPropertyMetas) {
@@ -1551,7 +1557,7 @@ static NSString *ModelDescription(NSObject *model) {
 - (id)yy_modelCopy{
     if (self == (id)kCFNull) return self;
     _YYModelMeta *modelMeta = [_YYModelMeta metaWithClass:self.class];
-    if (modelMeta->_nsType) return [self copy];
+    if (modelMeta->_nsType) return [self copy];//NS对象
     
     NSObject *one = [self.class new];
     for (_YYModelPropertyMeta *propertyMeta in modelMeta->_allPropertyMetas) {
@@ -1740,7 +1746,7 @@ static NSString *ModelDescription(NSObject *model) {
     NSUInteger count = 0;
     for (_YYModelPropertyMeta *propertyMeta in modelMeta->_allPropertyMetas) {
         if (!propertyMeta->_isKVCCompatible) continue;
-        value ^= [[self valueForKey:NSStringFromSelector(propertyMeta->_getter)] hash];
+        value ^= [[self valueForKey:NSStringFromSelector(propertyMeta->_getter)] hash];//异或
         count++;
     }
     if (count == 0) value = (long)((__bridge void *)self);

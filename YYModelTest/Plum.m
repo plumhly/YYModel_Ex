@@ -9,6 +9,7 @@
 #import "Plum.h"
 #import "Libo.h"
 #import "Plum1.h"
+#import <NSObject+YYModel.h>
 
 static NSString *_libo = nil;
 
@@ -16,13 +17,12 @@ static NSString *_libo = nil;
 
 
 
-//+ (NSDictionary *)modelCustomPropertyMapper {
-//    return @{@"name"  : @"n",
-//             @"page"  : @"p",
-//             @"desc"  : @"ext.desc",
-//             @"libo"  : @"ext.pl",
-//             @"bookID" : @[@"id",@"ID",@"book_id"]};
-//}
++ (NSDictionary *)modelCustomPropertyMapper {
+    return @{@"name"  : @"n",
+             @"page"  : @"p",
+             @"desc"  : @"ext.desc",
+             @"bookID" : @[@"id",@"ID",@"book_id"]};
+}
 //
 //+ (NSArray *)modelPropertyWhitelist {
 //    return @[@"name", @"page", @"desc", @"libo"];
@@ -35,7 +35,7 @@ static NSString *_libo = nil;
 + (void)testClass {
     NSLog(@"testClass%@", [self class]);//这个是NSObject类的方法
 }
-
+/*
 + (nullable Class)modelCustomClassForDictionary:(NSDictionary *)dictionary {
     NSLog(@"");
     if (dictionary[@"libo"]) {
@@ -45,6 +45,13 @@ static NSString *_libo = nil;
     }
     return nil;
 }
+
+
+
++ (nullable NSDictionary<NSString *, id> *)modelContainerPropertyGenericClass {
+    return @{@"libos": [Libo class]};
+}
+*/
 
 + (void)setLibo:(NSString *)libo {
     if (![_libo isEqualToString:libo]) {
@@ -59,8 +66,14 @@ static NSString *_libo = nil;
     return _libo;
 }
 
-+ (nullable NSDictionary<NSString *, id> *)modelContainerPropertyGenericClass {
-    return @{@"libos": [Libo class]};
+- (void)encodeWithCoder:(NSCoder *)aCoder {
+    [self yy_modelEncodeWithCoder: aCoder];
 }
+
+- (instancetype)initWithCoder:(NSCoder *)aDecoder {
+    self = [super init];
+    return [self yy_modelInitWithCoder:aDecoder];
+}
+
 
 @end

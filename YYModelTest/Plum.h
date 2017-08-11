@@ -17,15 +17,15 @@
 @end
 
 
-@interface Plum : NSObject 
+@interface Plum : NSObject <NSCoding>
 @property NSString *name;
 @property NSInteger page;
-@property (nonatomic, strong) NSArray<Libo *> *libos;
-
+//@property (nonatomic, strong) NSArray<Libo *> *libos;
+//@property (nonatomic, strong) NSString *libo;
 @property (class, strong) NSString *libo;
-//@property NSString *desc;
+@property NSString *desc;
 //@property NSString *libo;
-//@property NSString *bookID;
+@property NSString *bookID;
 
 
 
